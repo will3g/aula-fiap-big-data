@@ -1,0 +1,120 @@
+version: '3'
+
+services:
+  spark:
+    image: bitnami/spark:latest
+    ports:
+      - "7077:7077" # WORKER
+      - "8181:8080" # INTERFACE: http://localhost:8181
+    environment:
+      - SPARK_MASTER_HOST=localhost
+      - SPARK_MASTER_PORT=7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_LOCAL_DIRS=/tmp
+      - SPARK_WORKER_DIR=/tmp
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=2G
+      - SPARK_EXECUTOR_CORES=1
+      - SPARK_NUM_EXECUTORS=1
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    networks:
+      - bigdata-net
+
+  mysql:
+    image: mysql:latest
+    ports:
+      - "3306:3306"
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    volumes:
+      - ./data/mysql/data:/var/lib/mysql
+      - ./data/init.sql:/data/application/init.sql
+    environment:
+        MYSQL_ROOT_USER: root
+        MYSQL_ROOT_PASSWORD: secret
+        MYSQL_DATABASE: mydatabase
+        MYSQL_USER: user
+        MYSQL_PASSWORD: secret
+    networks:
+      - bigdata-net
+
+  adminer:
+    image: adminer
+    ports:
+      - "3333:8080" # INTERFACE: http://localhost:3333
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    depends_on:
+      - mysql
+    networks:
+      - bigdata-net
+
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    ports:
+      - 27017:27017
+    volumes:
+      - ./data/mongo:/data
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    networks:
+      - bigdata-net
+
+  mongodb-compass:
+    image: mongo-express
+    environment:
+      ME_CONFIG_MONGODB_SERVER: "mongodb"
+      ME_CONFIG_MONGODB_PORT: "27017"
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_MONGODB_ADMINUSERNAME: "root"
+      ME_CONFIG_MONGODB_ADMINPASSWORD: "root"
+      ME_CONFIG_BASICAUTH_USERNAME: "root"
+      ME_CONFIG_BASICAUTH_PASSWORD: "root"
+    ports:
+      - "8081:8081" # INTERFACE: http://localhost:8081
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    depends_on:
+      - mongodb
+    networks:
+      - bigdata-net
+
+  jupyter:
+    image: jupyter/base-notebook:latest
+    ports:
+      - "8888:8888"
+      - "8889:8889" # INTERFACE: http://localhost:8889
+    volumes:
+      - ./data/notebooks:/mnt/notebooks/
+    environment:
+       SPARK_MASTER: local[*]
+       JUPYTER_PORT: 8889
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - bigdata-net
+
+volumes:
+  data:
+   driver: local
+
+networks:
+  bigdata-net:
+    driver: bridge

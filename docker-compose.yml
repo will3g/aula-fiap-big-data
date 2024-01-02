@@ -111,6 +111,20 @@ services:
     networks:
       - bigdata-net
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/app
+    networks:
+      - bigdata-net
+    depends_on:
+      - mongodb
+      - mysql
+
 volumes:
   data:
    driver: local

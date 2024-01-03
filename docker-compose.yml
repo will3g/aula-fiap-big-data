@@ -1,8 +1,17 @@
 version: '3'
 
+x-mysql-variables: &mysql-variables
+  MYSQL_ROOT_USER: root
+  MYSQL_ROOT_PASSWORD: secret
+  MYSQL_DATABASE: mydatabase
+  MYSQL_USER: user
+  MYSQL_PASSWORD: secret
+  MYSQL_DOCKER_COMPOSE_HOSTNAME: bigdata-mysql
+
 services:
   spark:
     image: bitnami/spark:latest
+    container_name: bigdata-spark
     ports:
       - "7077:7077" # WORKER
       - "8181:8080" # INTERFACE: http://localhost:8181
@@ -26,6 +35,7 @@ services:
 
   mysql:
     image: mysql:latest
+    container_name: bigdata-mysql
     ports:
       - "3306:3306"
     deploy:
@@ -35,17 +45,13 @@ services:
     volumes:
       - ./data/mysql/data:/var/lib/mysql
       - ./data/init.sql:/data/application/init.sql
-    environment:
-        MYSQL_ROOT_USER: root
-        MYSQL_ROOT_PASSWORD: secret
-        MYSQL_DATABASE: mydatabase
-        MYSQL_USER: user
-        MYSQL_PASSWORD: secret
+    environment: *mysql-variables
     networks:
       - bigdata-net
 
   adminer:
-    image: adminer
+    image: adminer:4.8.1-standalone
+    container_name: bigdata-adminer
     ports:
       - "3333:8080" # INTERFACE: http://localhost:3333
     deploy:
@@ -59,6 +65,7 @@ services:
 
   mongodb:
     image: mongo:latest
+    container_name: bigdata-mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
@@ -74,7 +81,8 @@ services:
       - bigdata-net
 
   mongodb-compass:
-    image: mongo-express
+    image: mongo-express:1.0.0-18-alpine3.18
+    container_name: bigdata-mongodb-compass
     environment:
       ME_CONFIG_MONGODB_SERVER: "mongodb"
       ME_CONFIG_MONGODB_PORT: "27017"
@@ -95,7 +103,8 @@ services:
       - bigdata-net
 
   jupyter:
-    image: jupyter/base-notebook:latest
+    image: jupyter/base-notebook:x86_64-python-3.11.6
+    container_name: bigdata-jupyter
     ports:
       - "8888:8888"
       - "8889:8889" # INTERFACE: http://localhost:8889
@@ -111,14 +120,16 @@ services:
     networks:
       - bigdata-net
 
-  app:
+  cron:
     build:
       context: .
       dockerfile: Dockerfile
+    environment: *mysql-variables
+    container_name: bigdata-cron
     ports:
       - "8080:8080"
     volumes:
-      - ./app:/app
+      - ./cron:/cron
     networks:
       - bigdata-net
     depends_on:

@@ -4,7 +4,9 @@ WORKDIR /cron
 
 COPY . /cron
 
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONPATH=$PWD/cron
+
+RUN pip install -r requirements.txt
 
 EXPOSE 8080
 

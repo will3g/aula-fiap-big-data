@@ -16,7 +16,7 @@ services:
       - "7077:7077" # WORKER
       - "8181:8080" # INTERFACE: http://localhost:8181
     environment:
-      - SPARK_MASTER_HOST=localhost
+      - SPARK_MASTER_HOST=bigdata-spark
       - SPARK_MASTER_PORT=7077
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=4G
@@ -33,6 +33,36 @@ services:
     networks:
       - bigdata-net
 
+  spark-worker-1:
+    image: bitnami/spark:latest
+    container_name: bigdata-spark-worker-1
+    environment:
+      - SPARK_MASTER=spark://bigdata-spark:7077
+    command: "/opt/bitnami/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://bigdata-spark:7077"
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    networks:
+      - bigdata-net
+    depends_on:
+      - spark
+
+  spark-worker-2:
+    image: bitnami/spark:latest
+    container_name: bigdata-spark-worker-2
+    environment:
+      - SPARK_MASTER=spark://bigdata-spark:7077
+    command: "/opt/bitnami/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://bigdata-spark:7077"
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+    networks:
+      - bigdata-net
+    depends_on:
+      - spark
+
   mysql:
     image: mysql:latest
     container_name: bigdata-mysql
@@ -42,9 +72,9 @@ services:
       resources:
         limits:
           memory: 500m
-    volumes:
-      - ./data/mysql/data:/var/lib/mysql
-      - ./data/init.sql:/data/application/init.sql
+    # volumes:
+    #   - ./data/mysql/data:/var/lib/mysql
+    #   - ./data/init.sql:/data/application/init.sql
     environment: *mysql-variables
     networks:
       - bigdata-net
@@ -71,8 +101,8 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: root
     ports:
       - 27017:27017
-    volumes:
-      - ./data/mongo:/data
+    # volumes:
+    #   - ./data/mongo:/data
     deploy:
       resources:
         limits:
@@ -103,16 +133,17 @@ services:
       - bigdata-net
 
   jupyter:
-    image: jupyter/base-notebook:x86_64-python-3.11.6
+    build:
+      context: ./configs/jupyter
+      dockerfile: Dockerfile
     container_name: bigdata-jupyter
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
     ports:
       - "8888:8888"
-      - "8889:8889" # INTERFACE: http://localhost:8889
     volumes:
-      - ./data/notebooks:/mnt/notebooks/
-    environment:
-       SPARK_MASTER: local[*]
-       JUPYTER_PORT: 8889
+      - ./data/notebooks:/home/jovyan/work
+    command: "start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''"
     deploy:
       resources:
         limits:
